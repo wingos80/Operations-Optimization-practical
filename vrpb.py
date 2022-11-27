@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import gurobipy as grb
 import numpy as np
 import os
@@ -86,6 +87,9 @@ def Get_K(L, B, D, Q):
 #     print(f'{v.varName} = {v.x}')
 """
 
+
+
+
 ###################
 ### Import data ###
 ###################
@@ -102,9 +106,10 @@ excel_file = 'test.xlsx'
 
 # Load data for this instance
 dataframe = pd.read_excel(os.path.join(cwd,excel_file),sheet_name='Sheet1') # edges are basically the variables in a VRP for ONE TRUCK!!
-# trucks = np.arange(0,2,1) # TODO need to figure out how to calculate minimum and maximum number of trucks needed
+
 a = dataframe['X coord']
-# print(f'{a}')
+
+
 
 
 ############################
@@ -147,15 +152,25 @@ for node1 in nodes:
         Cu[node1] = node1
         D[node1] = demands[node1]
 
+        # plotting the linehaul node
+        plt.scatter(node1_coords[0], node1_coords[1], color='C1', zorder=2)
+
+
     elif node1_type == 'B':
         B[node1] = node1
         B0[node1] = node1
         Cu[node1] = node1
         D[node1] = demands[node1]
 
+        # plotting the backhaul node
+        plt.scatter(node1_coords[0], node1_coords[1], color='C2', zorder=2)
+
     elif node1_type == 'D':
         L0[node1] = node1
         B0[node1] = node1
+
+        # plotting the depot node
+        plt.scatter(node1_coords[0], node1_coords[1], color='C0', zorder=2)
     
     for node2 in nodes:
         node2_type = types[node2]
@@ -251,3 +266,16 @@ print(f'Objective function value: {model.objVal}')
 for v in model.getVars():
     if v.x != 0:
         print(f'{v.varName} = {v.x}')
+
+        # drawing the paths that are used
+        if v.varName[0] == 's' or v.varName[0] == 'x' :
+            node1 = int(v.varName.split("_")[1])
+            node2 = int(v.varName.split("_")[2])
+            node1_coords = (x_coords[node1], y_coords[node1])
+            node2_coords = (x_coords[node2], y_coords[node2])
+            mid_coords = ((node1_coords[0] + node2_coords[0])/2, (node1_coords[1] + node2_coords[1])/2)
+            plt.plot([node1_coords[0], node2_coords[0]], [node1_coords[1], node2_coords[1]], color="C0", zorder=1)
+            plt.arrow(mid_coords[0], mid_coords[1], (node2_coords[0] - node1_coords[0])/10, (node2_coords[1] - node1_coords[1])/10, head_width=0.1, head_length=0.1, color="C0")
+
+plt.grid()  
+plt.show()
