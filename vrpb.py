@@ -54,6 +54,7 @@ def Get_K(L, B, D, Q):
     Kl = firstFit(L_demands, len(L_demands), Q)
     Kb = firstFit(B_demands, len(B_demands), Q)
     return Kl, Kb
+
 """
 #####################################
 ### GENERAL LINEAR MODEL TEMPLATE ###
@@ -174,12 +175,6 @@ Q = 75
 
 # solving the knapscak problem to calculate minimum Kl and Kb
 Kl, Kb = Get_K(L, B, D, Q)
-print(f' Kl Kb ar: {Kl} {Kb}')
-
-print(f' these are all the variables.\n s:\n{s}\n\n xi:\n{xi}\n\n l:\n{l}\n\n')
-
-print(f'these are the demands: {D}')
-print(f'these are the types: {types}')
 
 model.update()
 
@@ -205,10 +200,14 @@ model.addConstr(grb.quicksum(s[i,j] for i in B for j in B0) == len(B), name='c7'
 for j in B:
     model.addConstr(grb.quicksum(l[i,j] for i in B if i!=j) - grb.quicksum(l[j,k] for k in B0 if k !=j) == -D[j], name=f'c8_{j}') #C8 
 
-    # BUG HERE, show daniel why theres bug here
-    model.addConstr(grb.quicksum(s[i,j] for i in B0) == 1, name=f'c9_{j}') # C9
+    # # BUG in C9 and C10, order of i and j is wrong in the paper, show daniel why theres bug here
+    # model.addConstr(grb.quicksum(s[i,j] for i in B0) == 1, name=f'c9_{j}') # C9
 
-    model.addConstr(grb.quicksum(s[k,j] for k in B) + grb.quicksum(xi[k,j] for k in L) == grb.quicksum(s[i,j] for i in B0), name=f'c10_{j}') #C10 
+    # model.addConstr(grb.quicksum(s[k,j] for k in B) + grb.quicksum(xi[k,j] for k in L) == grb.quicksum(s[i,j] for i in B0), name=f'c10_{j}') #C10 
+    
+    model.addConstr(grb.quicksum(s[j,i] for i in B0) == 1, name=f'c9_{j}') # C9
+
+    model.addConstr(grb.quicksum(s[k,j] for k in B) + grb.quicksum(xi[k,j] for k in L) == grb.quicksum(s[j,i] for i in B0), name=f'c10_{j}') #C10 
 
     for i in B0:
         model.addConstr(l[j,i] <= Q*s[j,i], name=f'c11_{j}{i}') # C11
@@ -222,9 +221,9 @@ for i in V:
     for j in V:
         model.addConstr(s[i,j]+s[j,i] <= 1, name=f'c14_{i}_{j}') # C14
 
-model.addConstr(grb.quicksum(s[i,j] for i in B for j in L) == 0, name='c15') # C15
-# model.addConstr(grb.quicksum(s[0,j] for j in B) == 0, name='c16') # C16
-# model.addConstr(grb.quicksum(s[i,j] for i in L for j in B0) == 0, name='c17') # C17
+model.addConstr(grb.quicksum(s[i,j] for i in B for j in L) == 0, name='c15')     # C15
+model.addConstr(grb.quicksum(s[0,j] for j in B) == 0, name='c16')                # C16
+model.addConstr(grb.quicksum(s[i,j] for i in L for j in B0) == 0, name='c17')    # C17
 
 model.update()
 
@@ -233,10 +232,9 @@ model.update()
 #####################
 
 
-# obj = grb.quicksum(C[i,j]*s[i,j] for i in V for j in V) + grb.quicksum(C[i,j]*xi[i,j] for i in L for j in B0) + grb.quicksum(s[0,i] for i in V)
-obj = grb.quicksum(C[i,j]*s[i,j] for i in V for j in V) + grb.quicksum(C[i,j]*xi[i,j] for i in L for j in B0)
+obj = grb.quicksum(C[i,j]*s[i,j] for i in V for j in V) + grb.quicksum(C[i,j]*xi[i,j] for i in L for j in B0)    # adding the cost of arcs
+obj += grb.quicksum(s[0,i] for i in V)    # adding number of trucks used as cost
 model.setObjective(obj, grb.GRB.MINIMIZE)
-
 
 model.update()
 
@@ -251,4 +249,5 @@ model.write('test.lp')
 print(f'Objective function value: {model.objVal}')
 
 for v in model.getVars():
-    print(f'{v.varName} = {v.x}')
+    if v.x != 0:
+        print(f'{v.varName} = {v.x}')
